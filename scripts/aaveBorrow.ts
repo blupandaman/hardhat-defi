@@ -2,13 +2,13 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 import { ILendingPool } from "../typechain-types";
-import { AggregatorV3Interface } from "./../typechain-types/AggregatorV3Interface";
 import { DEPOSIT_AMOUNT, getWeth } from "./getWeth";
 
 const WETH_TOKEN_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 const DAI_TOKEN_ADDRESS = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
 const PRICE_ORACLE_ADDRESS = "0xA50ba011c48153De246E5192C8f9258A2ba79Ca9";
 const LENDING_POOL_ADDRESSES_PROVIDER_ADDRESS = "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5";
+const UNISWAP_V2_ROUTER_ADDRESS = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
 
 const main = async () => {
     /* Depositing into Aave */
@@ -45,9 +45,25 @@ const main = async () => {
     // Borrow DAI from the LendingPool
     console.log("Borrowing DAI...");
     await borrowDai(lendingPool, DAI_TOKEN_ADDRESS, amountDaiToBorrow, deployer);
+    await getBorrowUserData(lendingPool, deployer); // See updated user information from Aave
 
-    // See updated user information from Aave
-    await getBorrowUserData(lendingPool, deployer);
+    /* Replaying collateral */
+    // Repay the initial collateral back to the lendingPool
+    console.log("Repaying DAI...");
+    await repay(amountDaiToBorrow, DAI_TOKEN_ADDRESS, lendingPool, deployer);
+    await getBorrowUserData(lendingPool, deployer); // See updated user information from Aave
+};
+
+const repay = async (
+    amount: BigNumber,
+    daiAddress: string,
+    lendingPool: ILendingPool,
+    account: SignerWithAddress
+) => {
+    await approveErc20(daiAddress, lendingPool.address, amount, account);
+    const repayTx = await lendingPool.repay(daiAddress, amount, 1, account.address);
+    await repayTx.wait(1);
+    console.log("DAI repayed");
 };
 
 const borrowDai = async (
@@ -80,9 +96,9 @@ const getDaiPrice = async () => {
 const getBorrowUserData = async (lendingPool: ILendingPool, account: SignerWithAddress) => {
     const { totalCollateralETH, totalDebtETH, availableBorrowsETH } =
         await lendingPool.getUserAccountData(account.address);
-    console.log("ETH deposited: " + totalCollateralETH);
-    console.log("ETH borrowed: " + totalDebtETH);
-    console.log("Available to borrow: " + availableBorrowsETH);
+    console.log("ETH amount deposited: " + totalCollateralETH);
+    console.log("ETH amount borrowed: " + totalDebtETH);
+    console.log("Available to borrow in ETH: " + availableBorrowsETH);
     return { totalDebtETH, availableBorrowsETH };
 };
 

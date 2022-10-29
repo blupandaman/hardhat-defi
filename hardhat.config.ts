@@ -15,13 +15,7 @@ const REPORT_GAS = process.env.REPORT_GAS || false;
 
 const config: HardhatUserConfig = {
     solidity: {
-        compilers: [
-            { version: "0.8.17" },
-            { version: "0.4.19" },
-            { version: "0.6.12" },
-            { version: "0.6.6" },
-            { version: "0.6.0" },
-        ],
+        compilers: [{ version: "0.4.19" }, { version: "0.6.12" }, { version: "0.6.6" }],
     },
     networks: {
         hardhat: {
